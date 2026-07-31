@@ -8,7 +8,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-# ====== BACKUP RPCs - RAILWAY PROOF ======
+# ====== BACKUP RPCs ======
 RPC_LIST = [
     "https://bsc-dataseed.binance.org/",
     "https://bsc-rpc.publicnode.com",
@@ -33,8 +33,7 @@ if BSC_RPC is None:
     print("ERROR: All RPCs failed")
     exit()
 
-# ====== THE REST OF YOUR CODE STAYS THE SAME ======
-WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"  # <-- CHANGE THIS
+WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"  # <-- CHANGE THIS TO YOUR WALLET
 KOMA_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
 
 def get_buttons():
@@ -58,7 +57,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "refresh":
         await query.edit_message_text("🔄 Refreshed!", reply_markup=get_buttons())
 
-async def check_whale():
+async def check_whale(app):
     global last_block
     while True:
         try:
@@ -76,9 +75,12 @@ async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
-    asyncio.create_task(check_whale())
+    
+    # Start whale checker
+    asyncio.create_task(check_whale(app))
+    
     print("Bot is running...")
-    await app.run_polling()
+    await app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     asyncio.run(main())
