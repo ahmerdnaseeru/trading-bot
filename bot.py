@@ -2,15 +2,23 @@ import os
 import asyncio
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
+# ====== LOAD SECRETS FROM REPLIT ======
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE" # <-- CHANGE THIS
+WHALE_WALLET = os.getenv("WALLET") # We will add this in Secrets tab
 
-RPC_LIST = ["https://bsc-dataseed.binance.org/", "https://rpc.ankr.com/bsc"]
+KOMA_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
+
+RPC_LIST = [
+    "https://bsc-dataseed.binance.org/",
+    "https://bsc-rpc.publicnode.com",
+    "https://rpc.ankr.com/bsc"
+]
 BSC_RPC = None
 last_block = 0
 
+print("Connecting to BSC...")
 for rpc in RPC_LIST:
     try:
         r = requests.post(rpc, json={"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}, timeout=5)
@@ -18,18 +26,52 @@ for rpc in RPC_LIST:
         BSC_RPC = rpc
         print(f"Connected to BSC! Block: {last_block} via {rpc}")
         break
-    except: continue
+    except:
+        print(f"Failed: {rpc}")
+        continue
 
 def get_buttons():
-    keyboard = [[InlineKeyboardButton("📊 Chart", url="https://poocoin.app")]]
+    keyboard = [
+        [InlineKeyboardButton("📊 Chart", url=f"https://poocoin.app/tokens/{KOMA_CONTRACT}")],
+        [InlineKeyboardButton("💎 Buy", url=f"https://pancakeswap.finance/swap?outputCurrency={KOMA_CONTRACT}")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="refresh")]
+    ]
     return InlineKeyboardMarkup(keyboard)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"🚀 Bot LIVE! Watching: {WHALE_WALLET[:10]}...", reply_markup=get_buttons())
+    await update.message.reply_text(
+        f"🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching: `{WHALE_WALLET[:10]}...`\nRPC: `{BSC_RPC}`",
+        reply_markup=get_buttons(),
+        parse_mode="Markdown"
+    )
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "refresh":
+        await query.edit_message_text("🔄 Refreshed!", reply_markup=get_buttons())
+
+async def check_whale(app):
+    global last_block
+    while True:
+        try:
+            r = requests.post(BSC_RPC, json={"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}, timeout=10)
+            current_block = int(r.json()['result'], 16)
+            if current_block > last_block:
+                print(f"New block: {current_block}")
+                last_block = current_block
+            await asyncio.sleep(10)
+        except Exception as e:
+            print(f"Error: {e}")
+            await asyncio.sleep(20)
 
 async def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button))
+    
+    asyncio.create_task(check_whale(app))
+    
     print("Bot is running...")
     await app.run_polling()
 
