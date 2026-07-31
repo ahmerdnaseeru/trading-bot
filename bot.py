@@ -11,8 +11,8 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 BSC_RPC = os.environ.get("BSC_RPC")
 
 # ====== CONFIG ======
-KOMA_CONTRACT = "0xYOUR_KOMA_CONTRACT_ADDRESS"  # <-- PUT YOUR KOMA TOKEN ADDRESS HERE
-WHALE_WALLET = "0xYOUR_WHALE_WALLET_ADDRESS"    # <-- PUT THE WHALE WALLET HERE
+KOMA_CONTRACT = "0x822c562a19317e9c61269C0Fdab90E48AA43Fc6F"  # <-- PUT YOUR KOMA TOKEN ADDRESS HERE
+WHALE_WALLET = "0x822c562a19317e9c61269C0Fdab90E48AA43Fc6F"    # <-- PUT THE WHALE WALLET HERE
 
 w3 = Web3(Web3.HTTPProvider(BSC_RPC))
 last_block = w3.eth.block_number
@@ -41,13 +41,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🔄 Refreshed!", reply_markup=get_buttons())
 
 # ====== WHALE TRACKER ======
-async def check_whale():
+async def check_whale(context: ContextTypes.DEFAULT_TYPE):
     global last_block
     while True:
         try:
             current_block = w3.eth.block_number
             if current_block > last_block:
                 # Add your whale tracking logic here
+                print("New block:", current_block)
                 last_block = current_block
             await asyncio.sleep(15)
         except Exception as e:
@@ -55,15 +56,17 @@ async def check_whale():
             await asyncio.sleep(30)
 
 # ====== RUN BOT ======
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button))
+    
+    # This runs check_whale every 15 seconds
+    app.job_queue.run_repeating(check_whale, interval=15, first=5)
 
-async def main():
-    asyncio.create_task(check_whale())
     print("Bot is running...")
-    await app.run_polling()
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
