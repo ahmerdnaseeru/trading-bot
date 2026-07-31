@@ -11,8 +11,8 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 BSC_RPC = os.environ.get("BSC_RPC")
 
 # ====== CONFIG ======
-KOMA_CONTRACT = "0x822c562a19317e9c61269C0Fdab90E48AA43Fc6F"  # <-- PUT YOUR KOMA TOKEN ADDRESS HERE
-WHALE_WALLET = "0x822c562a19317e9c61269C0Fdab90E48AA43Fc6F"    # <-- PUT THE WHALE WALLET HERE
+KOMA_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"  # USDT
+WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"    # <-- PUT YOUR WALLET HERE
 
 w3 = Web3(Web3.HTTPProvider(BSC_RPC))
 last_block = w3.eth.block_number
@@ -21,7 +21,7 @@ last_block = w3.eth.block_number
 def get_buttons():
     keyboard = [
         [InlineKeyboardButton("📊 Chart", url=f"https://poocoin.app/tokens/{KOMA_CONTRACT}")],
-        [InlineKeyboardButton("💎 Buy KOMA", url=f"https://pancakeswap.finance/swap?outputCurrency={KOMA_CONTRACT}")],
+        [InlineKeyboardButton("💎 Buy USDT", url=f"https://pancakeswap.finance/swap?outputCurrency={KOMA_CONTRACT}")],
         [InlineKeyboardButton("🔄 Refresh", callback_data="refresh")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -29,7 +29,7 @@ def get_buttons():
 # ====== COMMANDS ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching whale: " + WHALE_WALLET[:10] + "...",
+        "🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching wallet: " + WHALE_WALLET[:10] + "...",
         reply_markup=get_buttons(),
         parse_mode="Markdown"
     )
@@ -43,17 +43,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ====== WHALE TRACKER ======
 async def check_whale(context: ContextTypes.DEFAULT_TYPE):
     global last_block
-    while True:
-        try:
-            current_block = w3.eth.block_number
-            if current_block > last_block:
-                # Add your whale tracking logic here
-                print("New block:", current_block)
-                last_block = current_block
-            await asyncio.sleep(15)
-        except Exception as e:
-            print(f"Error in check_whale: {e}")
-            await asyncio.sleep(30)
+    try:
+        current_block = w3.eth.block_number
+        if current_block > last_block:
+            print("New block:", current_block)
+            last_block = current_block
+    except Exception as e:
+        print(f"Error in check_whale: {e}")
 
 # ====== RUN BOT ======
 def main():
