@@ -5,23 +5,30 @@ from web3 import Web3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# ====== LOAD SECRETS FROM RAILWAY ======
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-BSC_RPC = os.environ.get("BSC_RPC")
+# ====== LOAD SECRETS FROM RAILWAY VARIABLES ======
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+BSC_RPC = os.getenv("BSC_RPC")
 
 # ====== CONFIG ======
+WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"  # <-- CHANGE THIS TO YOUR WALLET
 KOMA_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"  # USDT for testing
-WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"    # <-- PUT YOUR WALLET HERE
 
+print("Connecting to BSC...")
 w3 = Web3(Web3.HTTPProvider(BSC_RPC))
+
+if not w3.is_connected():
+    print("ERROR: Could not connect to BSC RPC")
+    exit()
+
+print("Connected to BSC!")
 last_block = w3.eth.block_number
 
 # ====== BUTTONS ======
 def get_buttons():
     keyboard = [
         [InlineKeyboardButton("📊 Chart", url=f"https://poocoin.app/tokens/{KOMA_CONTRACT}")],
-        [InlineKeyboardButton("💎 Buy USDT", url=f"https://pancakeswap.finance/swap?outputCurrency={KOMA_CONTRACT}")],
+        [InlineKeyboardButton("💎 Buy", url=f"https://pancakeswap.finance/swap?outputCurrency={KOMA_CONTRACT}")],
         [InlineKeyboardButton("🔄 Refresh", callback_data="refresh")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -29,7 +36,7 @@ def get_buttons():
 # ====== COMMANDS ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching wallet: `" + WHALE_WALLET[:10] + "...`",
+        f"🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching: `{WHALE_WALLET[:10]}...`",
         reply_markup=get_buttons(),
         parse_mode="Markdown"
     )
@@ -47,24 +54,19 @@ async def check_whale():
         try:
             current_block = w3.eth.block_number
             if current_block > last_block:
-                print(f"New block detected: {current_block}")
+                print(f"New block: {current_block}")
                 last_block = current_block
-                # Add your alert logic here later
-            await asyncio.sleep(15)
+            await asyncio.sleep(10)
         except Exception as e:
-            print(f"Error in check_whale: {e}")
-            await asyncio.sleep(30)
+            print(f"Error: {e}")
+            await asyncio.sleep(20)
 
 # ====== RUN BOT ======
 async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
-    
-    # Start whale tracker
     asyncio.create_task(check_whale())
-
     print("Bot is running...")
     await app.run_polling()
 
