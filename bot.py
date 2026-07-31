@@ -1,3 +1,9 @@
+import os
+import asyncio
+import requests
+from web3 import Web3
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 async def check_whale():
     global last_block
     while True:
@@ -25,12 +31,6 @@ app.add_handler(CallbackQueryHandler(button))
 asyncio.create_task(check_whale())
 print("Bot is running...")
 app.run_polling()
-import os
-import asyncio
-import requests
-from web3 import Web3
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ====== CONFIG ======
 BOT_TOKEN = os.getenv("BOT_TOKEN")
