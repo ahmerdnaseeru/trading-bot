@@ -1,28 +1,27 @@
 import os
 import asyncio
 import requests
-from web3 import Web3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# ====== LOAD SECRETS FROM RAILWAY VARIABLES ======
+# ====== LOAD SECRETS ======
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 BSC_RPC = os.getenv("BSC_RPC")
 
 # ====== CONFIG ======
-WHALE_WALLET = "0x822c562a19317e9c61269C0Fdab90E48AA43Fc6F"  # <-- CHANGE THIS TO YOUR WALLET
+WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"  # <-- CHANGE THIS
 KOMA_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"  # USDT for testing
+last_block = 0
 
 print("Connecting to BSC...")
-w3 = Web3(Web3.HTTPProvider(BSC_RPC))
-
-if not w3.is_connected():
+try:
+    r = requests.post(BSC_RPC, json={"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}, timeout=10)
+    last_block = int(r.json()['result'], 16)
+    print(f"Connected to BSC! Block: {last_block}")
+except:
     print("ERROR: Could not connect to BSC RPC")
     exit()
-
-print("Connected to BSC!")
-last_block = w3.eth.block_number
 
 # ====== BUTTONS ======
 def get_buttons():
@@ -52,7 +51,8 @@ async def check_whale():
     global last_block
     while True:
         try:
-            current_block = w3.eth.block_number
+            r = requests.post(BSC_RPC, json={"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}, timeout=10)
+            current_block = int(r.json()['result'], 16)
             if current_block > last_block:
                 print(f"New block: {current_block}")
                 last_block = current_block
