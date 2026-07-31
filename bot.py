@@ -1,19 +1,20 @@
 import os
 from telethon import TelegramClient, events, Button
 
-API_ID = int(os.getenv("API_ID"))          # <-- just "API_ID"
-API_HASH = os.getenv("API_HASH")           # <-- just "API_HASH" 
-BOT_TOKEN = os.getenv("BOT_TOKEN")         # <-- just "BOT_TOKEN"
+API_ID = int(os.getenv("API_ID"))          
+API_HASH = os.getenv("API_HASH")           
+BOT_TOKEN = os.getenv("BOT_TOKEN")         
 
 client = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-GC_LINK = "https://t.me/dextradinggc"  # <-- YOUR GROUP
+GC_LINK = "https://t.me/dextradinggc"  # <-- YOUR GROUP LINK
 
 @client.on(events.NewMessage(pattern='/start'))
 async def start(event):
     buttons = [
+        [Button.inline('Balance', b'balance'), Button.inline('Copy Trade', b'copytrade')],
         [Button.inline('Buy', b'buy'), Button.inline('Sell', b'sell')],
-        [Button.url('📢 TG Group', GC_LINK), Button.inline('Balance', b'balance')]
+        [Button.url('📢 TG Group', GC_LINK)]
     ]
     await event.respond(f'**Ahmad DEX Bot**\nWelcome! Choose an option:', buttons=buttons)
 
@@ -29,5 +30,9 @@ async def sell(event):
 async def balance(event):
     await event.respond("Balance: 0 BNB\nWallet: Demo")
 
-print("Bot with TG Group button starting...")
+@client.on(events.CallbackQuery(data=b'copytrade'))
+async def copytrade(event):
+    await event.respond("Copy Trade feature coming soon")
+
+print("Bot with TG Group + Copy Trade starting...")
 client.run_until_disconnected()
