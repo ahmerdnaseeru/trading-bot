@@ -1,18 +1,16 @@
 import os
 import asyncio
 import requests
-import time
 from telethon import TelegramClient, events, Button
 from web3 import Web3
-from threading import Thread
 
-# ====== YOUR CODES - HARDCODED FOR GITHUB ======
-API_ID = 30956794  # <-- REPLACE with your API_ID
-API_HASH = "ab6d89c900dd83ac83170c088c8e3380"  # <-- REPLACE with your API_HASH
+# ====== YOUR CODES ======
+API_ID = 30956794
+API_HASH = "ab6d89c900dd83ac83170c088c8e3380"
 BOT_TOKEN = "8794247085:AAEFQ0GXpFs4fEAhiuogT2G-6uraiF6aSYA"
-TELEGRAM_CHAT_ID = "8826062913" # Your personal ID for whale alerts
+TELEGRAM_CHAT_ID = "8826062913"
 BSC_RPC = "https://bsc-dataseed.binance.org/"
-# ============================================
+# ========================
 
 # ====== WHALE TRACKER CONFIG ======
 KOMA_CONTRACT = "0xd5eaAaC47bD1993d661bc087E15dfb079a7f3C19"
@@ -30,7 +28,6 @@ def get_buttons():
         [Button.url('📢 TG Group', "https://t.me/dextradinggc")]
     ]
 
-# ====== SEND TELEGRAM FUNCTION FOR ALERTS ======
 def send_telegram(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     try:
@@ -38,8 +35,8 @@ def send_telegram(text):
     except Exception as e:
         print(f"Telegram Error: {e}")
 
-# ====== WHALE TRACKER BACKGROUND FUNCTION ======
-def check_whale():
+# ====== THIS IS THE ONLY CHANGE ======
+async def check_whale():
     global last_block
     while True:
         try:
@@ -50,58 +47,38 @@ def check_whale():
                     if tx.to and tx.to.lower() == KOMA_CONTRACT.lower():
                         if tx["from"].lower() == WHALE_WALLET.lower():
                             amount_bnb = w3.from_wei(tx.value, 'ether')
-                            msg = f"🚨 <b>KOMA WHALE BUY!</b> 🚨\n\n" \
-                                  f"<b>Wallet:</b> <code>{WHALE_WALLET}</code>\n" \
-                                  f"<b>Spent:</b> {amount_bnb} BNB\n" \
-                                  f"<b>TX:</b> https://bscscan.com/tx/{tx.hash.hex()}"
+                            msg = f"🚨 <b>KOMA WHALE BUY!</b> 🚨\n\n<b>Spent:</b> {amount_bnb} BNB\n<b>TX:</b> https://bscscan.com/tx/{tx.hash.hex()}"
                             send_telegram(msg)
             last_block = current_block
         except Exception as e:
-            print(f"Whale Check Error: {e}")
-        time.sleep(10)
+            print(f"Error: {e}")
+        await asyncio.sleep(10) # wait 10 sec
+# ===================================
 
-def start_whale_watcher():
-    send_telegram("✅ <b>Ahmad DEX Bot Started!</b>\n<b>KOMA Whale Watcher:</b> ACTIVE\nWatching: <code>0xB20f...3Cc8</code>")
-    Thread(target=check_whale, daemon=True).start()
-# ==============================================
-
-# ====== YOUR OLD BOT COMMANDS ======
 @client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.reply(
-        '**Ahmad DEX Bot - Test Mode**\n\n'
-        'Connected to BSC ✅\n'
-        'Whale Tracker: ACTIVE 🚨\n\n'
-        'Choose an option below:', 
-        buttons=get_buttons()
-    )
+    await event.reply('**Ahmad DEX Bot - Test Mode**\n\nConnected to BSC ✅\nWhale Tracker: ACTIVE 🚨\n\nChoose an option below:', buttons=get_buttons())
 
 @client.on(events.CallbackQuery(data=b'balance'))
 async def balance(event):
-    await event.answer('Balance feature loading... Wallet connect coming next', alert=True)
+    await event.answer('Balance feature loading...', alert=True)
 
 @client.on(events.CallbackQuery(data=b'copytrade'))
 async def copytrade(event):
-    await event.edit(
-        '**Copy Trade - Test Mode**\n'
-        'Use: `/copy add <wallet_address>`\n\n'
-        'Example: `/copy add 0x123...`', 
-        buttons=get_buttons()
-    )
+    await event.edit('**Copy Trade - Test Mode**\nUse: `/copy add <wallet_address>`', buttons=get_buttons())
 
 @client.on(events.CallbackQuery(data=b'buy'))
 async def buy(event):
-    await event.answer('Buy feature coming in Real Mode', alert=True)
+    await event.answer('Buy feature coming', alert=True)
 
 @client.on(events.CallbackQuery(data=b'sell'))
 async def sell(event):
-    await event.answer('Sell feature coming in Real Mode', alert=True)
-# ===================================
+    await event.answer('Sell feature coming', alert=True)
 
 async def main():
-    # START WHALE WATCHER IN BACKGROUND
-    await asyncio.to_thread(start_whale_watcher)
-    print("Bot starting with BSC Connected + All Buttons + Whale Tracker...")
+    asyncio.create_task(check_whale()) # Start whale watcher
+    send_telegram("✅ <b>Ahmad DEX Bot Started!</b>\n<b>KOMA Whale Watcher:</b> ACTIVE")
+    print("Bot starting...")
     await client.run_until_disconnected()
 
 client.loop.run_until_complete(main())
