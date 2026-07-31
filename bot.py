@@ -41,28 +41,31 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🔄 Refreshed!", reply_markup=get_buttons())
 
 # ====== WHALE TRACKER ======
-async def check_whale(context: ContextTypes.DEFAULT_TYPE):
+async def whale_loop(app):
     global last_block
-    try:
-        current_block = w3.eth.block_number
-        if current_block > last_block:
-            print("New block:", current_block)
-            last_block = current_block
-    except Exception as e:
-        print(f"Error in check_whale: {e}")
+    while True:
+        try:
+            current_block = w3.eth.block_number
+            if current_block > last_block:
+                print("New block:", current_block)
+                last_block = current_block
+            await asyncio.sleep(15)
+        except Exception as e:
+            print(f"Error in whale_loop: {e}")
+            await asyncio.sleep(30)
 
 # ====== RUN BOT ======
-def main():
+async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
     
-    # This runs check_whale every 15 seconds
-    app.job_queue.run_repeating(check_whale, interval=15, first=5)
+    # Start whale loop in background
+    asyncio.create_task(whale_loop(app))
 
     print("Bot is running...")
-    app.run_polling()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
