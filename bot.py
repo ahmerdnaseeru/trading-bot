@@ -1,3 +1,30 @@
+async def check_whale():
+    global last_block
+    while True:
+        try:
+            current_block = w3.eth.block_number
+            for block_num in range(last_block + 1, current_block + 1):
+                block = w3.eth.get_block(block_num, full_transactions=True)
+                for tx in block.transactions:
+                    if tx.to and tx.to.lower() == KOMA_CONTRACT:
+                        if tx["from"].lower() == WHALE_WALLET:
+                            amount_bnb = w3.from_wei(tx.value, 'ether')
+                            msg = f"🐋 <b>KOMA WHALE BUY!</b>\nAmount: {amount_bnb} BNB\nTx: https://bscscan.com/tx/{tx.hash.hex()}"
+                            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                            requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"})
+            last_block = current_block
+        except Exception as e:
+            print(f"Error: {e}")
+        await asyncio.sleep(10)
+
+
+# ====== RUN BOT ======
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(button))
+asyncio.create_task(check_whale())
+print("Bot is running...")
+app.run_polling()
 import os
 import asyncio
 import requests
@@ -66,16 +93,12 @@ async def check_whale():
 
 
 # ====== RUN BOT ======
-async def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button))
-    
-    # Run whale checker in background
-    asyncio.create_task(check_whale())
-    
-    print("Bot is running...")
-    await app.run_polling()
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(button))
 
-if __name__ == '__main__':
-    asyncio.run(main())
+# Run whale checker in background
+asyncio.create_task(check_whale())
+
+print("Bot is running...")
+app.run_polling()
