@@ -15,7 +15,7 @@ Thread(target=run).start()
 import asyncio
 import requests
 from telethon import TelegramClient, events, Button
-from web3 import web3
+from web3 import Web3
 import os
 import asyncio
 import requests
