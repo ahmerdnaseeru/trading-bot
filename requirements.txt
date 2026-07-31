@@ -1,2 +1,3 @@
-   telethon
-   web3
+telethon
+web3
+requests
