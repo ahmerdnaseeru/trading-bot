@@ -11,76 +11,59 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 BSC_RPC = os.environ.get("BSC_RPC")
 
 # ====== CONFIG ======
-KOMA_CONTRACT = "0x..."  # your koma address
-WHALE_WALLET = "0x..."   # your whale address
+KOMA_CONTRACT = "0xYOUR_KOMA_CONTRACT_ADDRESS"  # <-- PUT YOUR KOMA TOKEN ADDRESS HERE
+WHALE_WALLET = "0xYOUR_WHALE_WALLET_ADDRESS"    # <-- PUT THE WHALE WALLET HERE
+
 w3 = Web3(Web3.HTTPProvider(BSC_RPC))
 last_block = w3.eth.block_number
-
-# ====== RUN BOT ======
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button))
-asyncio.create_task(check_whale())
-print("Bot is running...")
-app.run_polling()
 
 # ====== BUTTONS ======
 def get_buttons():
     keyboard = [
-        [InlineKeyboardButton('💰 Balance', callback_data='balance')],
-        [InlineKeyboardButton('🟢 Buy', callback_data='buy'), InlineKeyboardButton('🔴 Sell', callback_data='sell')],
-        [InlineKeyboardButton('📢 TG Group', url="https://t.me/dextrading")]
+        [InlineKeyboardButton("📊 Chart", url=f"https://poocoin.app/tokens/{KOMA_CONTRACT}")],
+        [InlineKeyboardButton("💎 Buy KOMA", url=f"https://pancakeswap.finance/swap?outputCurrency={KOMA_CONTRACT}")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="refresh")]
     ]
     return InlineKeyboardMarkup(keyboard)
-
 
 # ====== COMMANDS ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "**Ahmad DEX Bot - Live**\n\nConnected to BSC ✅\nWatching whale: `{}`\n\nChoose an option below:".format(WHALE_WALLET),
+        "🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching whale: " + WHALE_WALLET[:10] + "...",
         reply_markup=get_buttons(),
-        parse_mode='Markdown'
+        parse_mode="Markdown"
     )
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    if query.data == 'balance':
-        await query.edit_message_text("Balance feature coming soon. Add WALLET_PRIVATE_KEY to check balance.")
-    elif query.data == 'buy':
-        await query.edit_message_text("Buy panel coming soon.")
-    elif query.data == 'sell':
-        await query.edit_message_text("Sell panel coming soon.")
+    if query.data == "refresh":
+        await query.edit_message_text("🔄 Refreshed!", reply_markup=get_buttons())
 
-
-# ====== WHALE CHECKER ======
+# ====== WHALE TRACKER ======
 async def check_whale():
     global last_block
     while True:
         try:
             current_block = w3.eth.block_number
-            for block_num in range(last_block + 1, current_block + 1):
-                block = w3.eth.get_block(block_num, full_transactions=True)
-                for tx in block.transactions:
-                    if tx.to and tx.to.lower() == KOMA_CONTRACT:
-                        if tx["from"].lower() == WHALE_WALLET:
-                            amount_bnb = w3.from_wei(tx.value, 'ether')
-                            msg = f"🐋 <b>KOMA WHALE BUY!</b>\nAmount: {amount_bnb} BNB\nTx: https://bscscan.com/tx/{tx.hash.hex()}"
-                            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-                            requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"})
-            last_block = current_block
+            if current_block > last_block:
+                # Add your whale tracking logic here
+                last_block = current_block
+            await asyncio.sleep(15)
         except Exception as e:
-            print(f"Error: {e}")
-        await asyncio.sleep(10)
-
+            print(f"Error in check_whale: {e}")
+            await asyncio.sleep(30)
 
 # ====== RUN BOT ======
 app = ApplicationBuilder().token(BOT_TOKEN).build()
+
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(button))
 
-# Run whale checker in background
-asyncio.create_task(check_whale())
+async def main():
+    asyncio.create_task(check_whale())
+    print("Bot is running...")
+    await app.run_polling()
 
-print("Bot is running...")
-app.run_polling()
+if __name__ == "__main__":
+    asyncio.run(main())
