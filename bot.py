@@ -14,12 +14,10 @@ Thread(target=run).start()
 
 import asyncio
 import requests
-from telethon import TelegramClient, events, Button
 from web3 import Web3
 import os
 import asyncio
 import requests
-from telethon import TelegramClient, events, Button
 from web3 import Web3
 
 # ====== YOUR CODES ======
@@ -37,7 +35,6 @@ w3 = Web3(Web3.HTTPProvider(BSC_RPC))
 last_block = w3.eth.block_number
 # ==================================
 
-client = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 def get_buttons():
     return [
