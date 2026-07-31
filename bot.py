@@ -7,23 +7,36 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 # ====== LOAD SECRETS ======
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-BSC_RPC = os.getenv("BSC_RPC")
 
-# ====== CONFIG ======
-WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"  # <-- CHANGE THIS
-KOMA_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"  # USDT for testing
+# ====== BACKUP RPCs - RAILWAY PROOF ======
+RPC_LIST = [
+    "https://bsc-dataseed.binance.org/",
+    "https://bsc-rpc.publicnode.com",
+    "https://rpc.ankr.com/bsc"
+]
+BSC_RPC = None
 last_block = 0
 
 print("Connecting to BSC...")
-try:
-    r = requests.post(BSC_RPC, json={"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}, timeout=10)
-    last_block = int(r.json()['result'], 16)
-    print(f"Connected to BSC! Block: {last_block}")
-except:
-    print("ERROR: Could not connect to BSC RPC")
+for rpc in RPC_LIST:
+    try:
+        r = requests.post(rpc, json={"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}, timeout=5)
+        last_block = int(r.json()['result'], 16)
+        BSC_RPC = rpc
+        print(f"Connected to BSC! Block: {last_block} via {rpc}")
+        break
+    except:
+        print(f"Failed: {rpc}")
+        continue
+
+if BSC_RPC is None:
+    print("ERROR: All RPCs failed")
     exit()
 
-# ====== BUTTONS ======
+# ====== THE REST OF YOUR CODE STAYS THE SAME ======
+WHALE_WALLET = "0xYOUR_WALLET_ADDRESS_HERE"  # <-- CHANGE THIS
+KOMA_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
+
 def get_buttons():
     keyboard = [
         [InlineKeyboardButton("📊 Chart", url=f"https://poocoin.app/tokens/{KOMA_CONTRACT}")],
@@ -32,10 +45,9 @@ def get_buttons():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ====== COMMANDS ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching: `{WHALE_WALLET[:10]}...`",
+        f"🚀 *KOMA Whale Bot is LIVE* 🚀\n\nWatching: `{WHALE_WALLET[:10]}...`\nRPC: `{BSC_RPC}`",
         reply_markup=get_buttons(),
         parse_mode="Markdown"
     )
@@ -46,7 +58,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "refresh":
         await query.edit_message_text("🔄 Refreshed!", reply_markup=get_buttons())
 
-# ====== WHALE TRACKER ======
 async def check_whale():
     global last_block
     while True:
@@ -61,7 +72,6 @@ async def check_whale():
             print(f"Error: {e}")
             await asyncio.sleep(20)
 
-# ====== RUN BOT ======
 async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
