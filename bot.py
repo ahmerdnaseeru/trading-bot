@@ -1,56 +1,50 @@
-from flask import Flask
-from threading import Thread
-import os
-
-app = Flask('')
-@app.route('/')
-def home(): 
-    return "Bot is alive"
-
-def run(): 
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
-
-Thread(target=run).start()
-
-import asyncio
-import requests
-from web3 import Web3
 import os
 import asyncio
 import requests
 from web3 import Web3
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# ====== YOUR CODES ======
-API_ID = 30956794
-API_HASH = "ab6d89c900dd83ac83170c088c8e3380"
-BOT_TOKEN = "8794247085:AAEFQ0GXpFs4fEAhiuogT2G-6uraiF6aSYA"
-TELEGRAM_CHAT_ID = "8826062913"
-BSC_RPC = "https://bsc-dataseed.binance.org/"
-# ========================
+# ====== CONFIG ======
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+BSC_RPC = os.getenv("BSC_RPC")
+WHALE_WALLET = os.getenv("WHALE_WALLET", "0xB20f204A158e4E0DF40fA02B048BBbE2ea7ff3Cc8").lower()
+KOMA_CONTRACT = os.getenv("KOMA_CONTRACT", "0xYOUR_KOMA_CONTRACT_ADDRESS_HERE").lower()
 
-# ====== WHALE TRACKER CONFIG ======
-KOMA_CONTRACT = "0xd5eaAaC47bD1993d661bc087E15dfb079a7f3C19"
-WHALE_WALLET = "0xB20f204A158e4ED0F40fA02B048BbB2ea7ff3Cc8"
 w3 = Web3(Web3.HTTPProvider(BSC_RPC))
 last_block = w3.eth.block_number
-# ==================================
 
-
+# ====== BUTTONS ======
 def get_buttons():
-    return [
-        [Button.inline('💰 Balance', b'balance'), Button.inline('📡 Copy Trade', b'copytrade')],
-        [Button.inline('🟢 Buy', b'buy'), Button.inline('🔴 Sell', b'sell')],
-        [Button.url('📢 TG Group', "https://t.me/dextradinggc")]
+    keyboard = [
+        [InlineKeyboardButton('💰 Balance', callback_data='balance')],
+        [InlineKeyboardButton('🟢 Buy', callback_data='buy'), InlineKeyboardButton('🔴 Sell', callback_data='sell')],
+        [InlineKeyboardButton('📢 TG Group', url="https://t.me/dextrading")]
     ]
+    return InlineKeyboardMarkup(keyboard)
 
-def send_telegram(text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    try:
-        requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"})
-    except Exception as e:
-        print(f"Telegram Error: {e}")
 
-# ====== THIS IS THE ONLY CHANGE ======
+# ====== COMMANDS ======
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "**Ahmad DEX Bot - Live**\n\nConnected to BSC ✅\nWatching whale: `{}`\n\nChoose an option below:".format(WHALE_WALLET),
+        reply_markup=get_buttons(),
+        parse_mode='Markdown'
+    )
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == 'balance':
+        await query.edit_message_text("Balance feature coming soon. Add WALLET_PRIVATE_KEY to check balance.")
+    elif query.data == 'buy':
+        await query.edit_message_text("Buy panel coming soon.")
+    elif query.data == 'sell':
+        await query.edit_message_text("Sell panel coming soon.")
+
+
+# ====== WHALE CHECKER ======
 async def check_whale():
     global last_block
     while True:
@@ -59,43 +53,29 @@ async def check_whale():
             for block_num in range(last_block + 1, current_block + 1):
                 block = w3.eth.get_block(block_num, full_transactions=True)
                 for tx in block.transactions:
-                    if tx.to and tx.to.lower() == KOMA_CONTRACT.lower():
-                        if tx["from"].lower() == WHALE_WALLET.lower():
+                    if tx.to and tx.to.lower() == KOMA_CONTRACT:
+                        if tx["from"].lower() == WHALE_WALLET:
                             amount_bnb = w3.from_wei(tx.value, 'ether')
-                            msg = f"🚨 <b>KOMA WHALE BUY!</b> 🚨\n\n<b>Spent:</b> {amount_bnb} BNB\n<b>TX:</b> https://bscscan.com/tx/{tx.hash.hex()}"
-                            send_telegram(msg)
+                            msg = f"🐋 <b>KOMA WHALE BUY!</b>\nAmount: {amount_bnb} BNB\nTx: https://bscscan.com/tx/{tx.hash.hex()}"
+                            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                            requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"})
             last_block = current_block
         except Exception as e:
             print(f"Error: {e}")
-        await asyncio.sleep(10) # wait 10 sec
-# ===================================
+        await asyncio.sleep(10)
 
-@client.on(events.NewMessage(pattern='/start'))
-async def start(event):
-    await event.reply('**Ahmad DEX Bot - Test Mode**\n\nConnected to BSC ✅\nWhale Tracker: ACTIVE 🚨\n\nChoose an option below:', buttons=get_buttons())
 
-@client.on(events.CallbackQuery(data=b'balance'))
-async def balance(event):
-    await event.answer('Balance feature loading...', alert=True)
-
-@client.on(events.CallbackQuery(data=b'copytrade'))
-async def copytrade(event):
-    await event.edit('**Copy Trade - Test Mode**\nUse: `/copy add <wallet_address>`', buttons=get_buttons())
-
-@client.on(events.CallbackQuery(data=b'buy'))
-async def buy(event):
-    await event.answer('Buy feature coming', alert=True)
-
-@client.on(events.CallbackQuery(data=b'sell'))
-async def sell(event):
-    await event.answer('Sell feature coming', alert=True)
-
+# ====== RUN BOT ======
 async def main():
-    asyncio.create_task(check_whale()) # Start whale watcher
-    send_telegram("✅ <b>Ahmad DEX Bot Started!</b>\n<b>KOMA Whale Watcher:</b> ACTIVE")
-    print("Bot starting...")
-    await client.run_until_disconnected()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button))
+    
+    # Run whale checker in background
+    asyncio.create_task(check_whale())
+    
+    print("Bot is running...")
+    await app.run_polling()
 
-client.loop.run_until_complete(main())
-
-
+if __name__ == '__main__':
+    asyncio.run(main())
